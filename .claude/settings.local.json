@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.2026edudataaicontest.com)",
+      "WebSearch",
+      "Bash(curl:*)",
+      "WebFetch(domain:www.edmgr.kr)"
+    ]
+  }
+}
