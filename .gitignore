@@ -1,0 +1,27 @@
+# 가상환경
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# 데이터셋 — 개별 CSV는 추적하지 않고 dataset.zip 으로만 관리
+# (앱 실행 전 dataset.zip 을 압축 해제해 dataset/ 폴더를 복원해야 함)
+dataset/
+!dataset.zip
+
+# 산출물 캐시 (재생성 가능)
+data/processed/*.pkl
+
+# 환경 변수·시크릿
+.streamlit/secrets.toml
+.env
+
+# OS
+.DS_Store
+Thumbs.db

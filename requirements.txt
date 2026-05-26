@@ -1,0 +1,13 @@
+# 쉼표(Swimpyo) — 제8회 교육 공공데이터 AI 활용대회 프로토타입
+# Python 3.13 / Streamlit Cloud 무료 티어 기준
+# 설치: .venv/Scripts/python.exe -m pip install -r requirements.txt
+
+streamlit>=1.40
+pandas>=2.2
+numpy>=1.26
+scikit-learn>=1.5
+lightgbm>=4.5          # ADR-005: XGBoost 대비 메모리 효율 — 무료 티어 적합
+shap>=0.46            # AD-F007: 위험 요인 설명 (설명가능 AI)
+plotly>=5.24          # SHAP 차트·게이지·추이 시각화
+folium>=0.18          # AD-F006: 전국/지역 위험 지도 (위도·경도 기반)
+streamlit-folium>=0.23 # Folium 지도를 Streamlit에 임베드
