@@ -50,6 +50,7 @@ from sklearn.metrics import r2_score, mean_absolute_error, roc_auc_score
 import folium
 from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
+from streamlit_option_menu import option_menu
 
 # =============================================================================
 # [common] 설정·상수
@@ -597,7 +598,118 @@ def page_teacher_selfcheck(df: pd.DataFrame, model, ref_pred, explainer, median_
 
 
 # =============================================================================
-# 라우팅 (사이드바: 관리자 대시보드 / 교사 셀프체크)
+# [info] 모델·데이터 정보 페이지
+#   - 어떤 데이터로 학습했는지, 지표가 무엇을 의미하는지 설명 (심사 투명성)
+# =============================================================================
+# 피처별 의미 설명 (모델·데이터 정보 페이지용)
+FEATURE_INFO = {
+    "총교원": "학교 규모(인력)",
+    "기간제비율": "고용 안정성 — 높을수록 부담이 정규직에 쏠림",
+    "보직비율": "행정 업무 분담 정도",
+    "여교원비율": "교원 성별 구성",
+    "주당평균수업시수": "수업 부담 강도(교사 1인당)",
+    "학급당학생수": "학급 운영 부담",
+    "교원1인당학생수": "담당 학생 부담",
+    "총학생수": "학교 규모(학생)",
+    "특수학급수": "특수교육 지원 부담",
+    "내부상담건수": "정서노동·상담 수요",
+    "WEE설치": "교내 정서지원 자원 유무",
+    "정규동아리수": "비교과 운영 규모",
+    "교사당동아리수": "추가 업무 부담(동아리 지도)",
+    "학교급코드": "학교 유형(초/중/고)",
+    "설립코드": "설립 유형(공립/사립)",
+}
+
+
+def page_model_info(df_t: pd.DataFrame, metrics: dict):
+    st.title("모델·데이터 정보")
+    st.caption("이 시스템이 어떤 데이터로, 어떻게 학습하며, 각 지표가 무엇을 의미하는지 설명합니다.")
+
+    # 1. 학습 데이터
+    st.header("1. 학습 데이터")
+    n_school = df_t["학교명"].nunique()
+    years = sorted(df_t["연도"].unique())
+    c1, c2, c3 = st.columns(3)
+    c1.metric("학습 표본", f"{metrics['n']:,} 행", help="학교 × 연도 단위")
+    c2.metric("대상 학교", f"{n_school:,} 개교")
+    c3.metric("대상 기간", f"{years[0]}~{years[-1]}")
+    st.markdown(
+        "**출처**: 경기도교육청 학교알리미 공시데이터(공개 정보). "
+        "초·중·고 전체 학교를 `정보공시 학교코드` 기준으로 (학교, 연도) 패널로 결합했습니다."
+    )
+    data_tbl = pd.DataFrame({
+        "공시 데이터셋": ["직위별 교원 현황", "수업일수 및 수업시수", "학년별·학급별 학생수",
+                       "학생·학부모 상담 현황", "동아리 활동 현황", "학교기본정보"],
+        "추출한 변수": [
+            "휴직비율(타깃), 기간제·보직·여교원 비율, 전체 교원수",
+            "교사 1인당 주당 평균 수업시수",
+            "학급당 학생수, 교원 1인당 학생수, 전체 학생수, 특수학급수",
+            "내부 상담 실적, WEE클래스 설치 여부",
+            "정규 동아리수, 교사 1인당 동아리 지도수",
+            "위도·경도(지도), 설립구분, 지역, 학교급",
+        ],
+    })
+    st.dataframe(data_tbl, width="stretch", hide_index=True)
+
+    # 2. 예측 타깃과 TBRI
+    st.header("2. 예측 타깃과 TBRI")
+    st.markdown(
+        "- **예측 타깃** = 교원 **휴직비율** = 휴직 교원 수 ÷ 전체 교원 수\n"
+        "- **TBRI(교사 부담 위험 지수)** = 모델이 예측한 휴직비율을 전체 학교 분포의 "
+        "**백분위(0–100)**로 환산한 값\n"
+        "- **등급**(백분위 기준): 🟩 녹색(0–50, 양호) · 🟧 황색(50–75, 주의) · 🟥 적색(75–100, 위험)"
+    )
+    st.info(
+        "TBRI는 학교 **환경의 구조적 위험도**이며 특정 교사 개인의 번아웃을 진단하지 않습니다. "
+        "휴직에는 질병·육아·기타 사유가 섞여 있어, 순수 번아웃이 아닌 **누적 스트레스 신호**로 해석합니다."
+    )
+
+    # 3. 입력 피처
+    st.header("3. 입력 피처 (15개)")
+    feat_tbl = pd.DataFrame({
+        "피처": [FEATURE_LABELS[c] for c in FEATURE_COLS],
+        "의미": [FEATURE_INFO[c] for c in FEATURE_COLS],
+    })
+    st.dataframe(feat_tbl, width="stretch", hide_index=True, height=565)
+
+    # 4. 모델
+    st.header("4. 모델: LightGBM")
+    st.markdown(
+        "- **알고리즘**: LightGBM 회귀 (Gradient Boosting 계열)\n"
+        "- **선택 이유**: 정형(테이블) 데이터에 강하고, XGBoost보다 메모리 효율이 높아 "
+        "무료 호스팅(약 1GB)에 적합하며, SHAP TreeExplainer를 공식 지원해 설명가능 AI 구현이 쉽습니다.\n"
+        "- **설명가능 AI(SHAP)**: 학교별 예측에 각 요인이 얼마나 기여했는지 분해해 보여줍니다."
+    )
+
+    # 5. 성능 지표의 의미
+    st.header("5. 성능 지표의 의미")
+    m1, m2, m3 = st.columns(3)
+    m1.metric("R² (결정계수)", f"{metrics['r2']:.3f}")
+    m2.metric("MAE (평균절대오차)", f"{metrics['mae']:.4f}")
+    m3.metric("AUC (고위험 판별)", f"{metrics['auc']:.3f}")
+    st.markdown(
+        f"- **R² (결정계수, 0–1)**: 학교 특성으로 휴직비율의 변동을 설명하는 비율. "
+        f"현재 {metrics['r2']:.2f} → 변동의 약 **{metrics['r2'] * 100:.0f}%**를 설명. 1에 가까울수록 좋음.\n"
+        f"- **MAE (평균절대오차)**: 예측 휴직비율과 실제값의 평균 차이. "
+        f"현재 {metrics['mae']:.3f} → 평균 약 **{metrics['mae'] * 100:.1f}%p** 오차.\n"
+        f"- **AUC (0.5–1.0)**: 고위험(상위 25%) 학교를 가려내는 판별력. 0.5=무작위, 1.0=완벽. "
+        f"현재 {metrics['auc']:.2f} → **우수한 판별력**."
+    )
+
+    # 6. 전처리 과정
+    st.header("6. 전처리 과정")
+    st.markdown(
+        "1. 6종 CSV를 `정보공시 학교코드`(+연도)로 좌측 조인\n"
+        "2. 비율 파생: 기간제·보직·여교원·휴직 비율 = 해당 인원 ÷ 전체 교원\n"
+        "3. 타깃(휴직비율) 결측·비정상(>1) 행 제거\n"
+        "4. 결측치는 **학교급별 중앙값**으로 대치 (이상치에 둔감한 견고한 통계량)\n"
+        "5. 범주형(학교급·설립구분)은 정수 인코딩\n"
+        "6. 학습/평가 8:2 분할 후 LightGBM 학습 (`@st.cache_data`·`@st.cache_resource`로 캐싱)"
+    )
+
+
+# =============================================================================
+# 라우팅 (사이드바: 관리자 대시보드 / 교사 셀프체크 / 모델·데이터 정보)
 # =============================================================================
 def main():
     st.set_page_config(page_title="쉼표(Swimpyo)", page_icon="🍃", layout="wide")
@@ -607,20 +719,31 @@ def main():
     model, ref_pred, explainer, median_by_level, metrics = train_model(df)
     df_t = add_tbri_columns(df, model, ref_pred)
 
-    st.sidebar.title("🍃 쉼표 (Swimpyo)")
-    st.sidebar.caption("AI 기반 교사 업무·감정 부담 조기경보 시스템")
-    mode = st.sidebar.radio(
-        "메뉴",
-        ["관리자 대시보드", "교사 셀프체크"],
-    )
-    st.sidebar.divider()
-    with st.sidebar.expander("ℹ️ 모델 정보"):
-        st.write(f"학습 표본: {metrics['n']:,}개 (학교×연도)")
-        st.write(f"휴직비율 회귀 R²: {metrics['r2']:.3f}")
-        st.write(f"고위험 분류 AUC: {metrics['auc']:.3f}")
-        st.write("모델: LightGBM · 설명: SHAP")
-    st.sidebar.caption("데이터: 경기도교육청 학교알리미 공시(2022~2025)")
-    st.sidebar.caption("공개 공시데이터 — 실제 학교명·지역명 사용")
+    with st.sidebar:
+        st.title("🍃 쉼표 (Swimpyo)")
+        st.caption("AI 기반 교사 업무·감정 부담 조기경보 시스템")
+        # 아이콘 메뉴 (라디오 대신) — 선택 항목은 검정 강조 (테마 일관성)
+        mode = option_menu(
+            menu_title=None,
+            options=["관리자 대시보드", "교사 셀프체크", "모델·데이터 정보"],
+            icons=["speedometer2", "clipboard-check", "info-circle"],  # Bootstrap Icons
+            default_index=0,
+            styles={
+                "container": {"padding": "4px 0", "background-color": "transparent"},
+                # 아이콘 색을 글자색에 맞춰 따라가게 함(inherit)
+                # → 선택 시(어두운 배경) 흰색, 비선택 시 어두운색 → 둘 다 보임
+                "icon": {"color": "inherit", "font-size": "16px"},
+                "nav-link": {
+                    "font-size": "15px", "text-align": "left", "margin": "3px 0",
+                    "padding": "10px 12px", "border-radius": "8px", "color": "#262730",
+                    "--hover-color": "#eceef1",
+                },
+                "nav-link-selected": {"background-color": "#262730", "color": "white"},
+            },
+        )
+        st.divider()
+        st.caption("데이터: 경기도교육청 학교알리미 공시(2022~2025)")
+        st.caption("공개 공시데이터 — 실제 학교명·지역명 사용")
 
     if mode == "관리자 대시보드":
         st.title("관리자 대시보드")
@@ -631,9 +754,11 @@ def main():
             page_admin_report(df_t, explainer)
         with tab3:
             page_admin_whatif(df_t, model, ref_pred, explainer)
-    else:
+    elif mode == "교사 셀프체크":
         st.title("교사 셀프체크")
         page_teacher_selfcheck(df, model, ref_pred, explainer, median_by_level)
+    else:
+        page_model_info(df_t, metrics)
 
 
 if __name__ == "__main__":

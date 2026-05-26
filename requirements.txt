@@ -11,3 +11,4 @@ shap>=0.46            # AD-F007: 위험 요인 설명 (설명가능 AI)
 plotly>=5.24          # SHAP 차트·게이지·추이 시각화
 folium>=0.18          # AD-F006: 전국/지역 위험 지도 (위도·경도 기반)
 streamlit-folium>=0.23 # Folium 지도를 Streamlit에 임베드
+streamlit-option-menu>=0.3.6 # 사이드바 아이콘 메뉴 (라디오 대체)
