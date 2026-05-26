@@ -1,10 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:www.2026edudataaicontest.com)",
-      "WebSearch",
-      "Bash(curl:*)",
-      "WebFetch(domain:www.edmgr.kr)"
+      "PowerShell(python --version; python -c \"import streamlit, pandas, numpy, lightgbm, shap, plotly, folium; print\\('streamlit', streamlit.__version__\\); print\\('all imports OK'\\)\" 2>&1)",
+      "PowerShell(python -m pip install --upgrade pip --quiet; python -m pip install -r requirements.txt --quiet 2>&1 | Select-Object -Last 30)",
+      "PowerShell(python -c \"import streamlit, pandas, numpy, lightgbm, shap, plotly, folium, streamlit_folium; print\\('streamlit', streamlit.__version__\\); print\\('lightgbm', lightgbm.__version__\\); print\\('shap', shap.__version__\\); print\\('all OK'\\)\")",
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\('app.py', encoding='utf-8'\\).read\\(\\)\\); print\\('SYNTAX OK'\\)\")"
     ]
   }
 }
