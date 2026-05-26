@@ -1,0 +1,12 @@
+# 쉼표(Swimpyo) Streamlit 테마
+# Streamlit 기본 강조색은 빨강(#FF4B4B)이라 슬라이더·체크박스·탭·링크가 모두 빨갛게 보인다.
+# 강조색을 검정 계열로 바꿔 UI 전반의 빨강을 제거한다. (녹/황/적 등급 색은 차트에서만 의미상 사용)
+[theme]
+base = "light"
+primaryColor = "#262730"        # 강조색: 진회색(검정 계열)
+textColor = "#1a1a1a"           # 본문 글자: 검정
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f3f4f6"
+
+[browser]
+gatherUsageStats = false         # 실행 시 이메일/통계 수집 프롬프트 비활성화

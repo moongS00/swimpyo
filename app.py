@@ -5,7 +5,7 @@
 #
 # [아키텍처]  모듈러 모놀리스 + 파일 기반 산출물 (docs/acad/architecture.md, ADR-001)
 #   본 단일 파일은 ACAD 설계의 논리 모듈을 섹션으로 반영한다:
-#     [common]  설정·식별정보 익명화·유틸
+#     [common]  설정·표시 컬럼·유틸
 #     [etl]     공공데이터(CSV) 로드·전처리·피처 엔지니어링  (오프라인 배치 역할)
 #     [model]   LightGBM 학습·TBRI 추론·SHAP 설명             (인메모리)
 #     [support] 위험요인 → 지원자원 룰 매핑                    (LLM 비사용, 룰 기반)
@@ -31,14 +31,13 @@
 #   - 모델이 예측한 '교원 휴직비율'을 전체 학교 분포의 백분위로 환산
 #   - ※ 특정 교사 개인의 상태가 아니라 학교 단위 구조적 위험을 나타냄 (프라이버시 원칙)
 #
-# [프라이버시]  데이터 로드 '직후' 학교명·지역명을 코드 내부에서 익명화 (AD-S001)
-#   - 화면에는 원본 학교명/지역명을 일절 노출하지 않음 (예: A고등학교, B지역)
-#   - 개인 식별 정보 미수집·미저장 (DB 미사용, 세션 휘발성)
+# [데이터 공개성]  학교알리미 공시데이터는 공개 정보이므로 학교명·지역명을 그대로 사용
+#   - 교사 셀프체크는 개인 식별 정보를 미수집·미저장 (DB 미사용, 세션 휘발성)
+#   - ※ 대회 제출 문서(제안서·PDF)에는 학교명·지역명 비공개 규정이 적용됨에 유의
 # =============================================================================
 
 import os
 import glob
-import string
 
 import numpy as np
 import pandas as pd
@@ -107,39 +106,13 @@ def _num(s):
 
 
 # =============================================================================
-# [common] 식별 정보 익명화
-#   - 데이터 로드 직후 호출하여 학교명·지역명을 결정적(deterministic)으로 마스킹
-#   - 같은 학교코드는 항상 같은 익명 라벨로 매핑 (세션 내 일관성)
+# [common] 표시용 컬럼 준비
+#   - 학교알리미 공시데이터는 공개 정보이므로 실제 학교명·지역명을 그대로 사용한다.
 # =============================================================================
-def _region_alias(idx: int) -> str:
-    """0,1,2,... → '지역 A','지역 B',... 'B시' 형태의 익명 지역 라벨."""
-    letters = string.ascii_uppercase
-    if idx < 26:
-        return f"{letters[idx]}지역"
-    first, second = divmod(idx, 26)
-    return f"{letters[first - 1]}{letters[second]}지역"
-
-
-def anonymize(df: pd.DataFrame) -> pd.DataFrame:
-    """학교명·지역명을 익명 라벨로 치환한 새 컬럼을 추가하고 원본 식별 컬럼은 제거.
-    화면 출력에는 익명 컬럼(학교, 지역)만 사용한다."""
+def prepare_display(df: pd.DataFrame) -> pd.DataFrame:
+    """화면 표시용 '학교' 컬럼을 실제 학교명으로 설정한다 (익명화하지 않음)."""
     df = df.copy()
-
-    # 지역(시군구) → 'A지역','B지역' ... 첫 등장 순서로 결정적 매핑
-    region_src = df["지역"].fillna("미상")
-    uniq_regions = {r: _region_alias(i) for i, r in enumerate(sorted(region_src.unique()))}
-    df["지역"] = region_src.map(uniq_regions)
-
-    # 학교명 → '익명{급}-{번호}' (학교코드 기준 결정적). 원본 학교명은 버린다.
-    suffix = {0: "초", 1: "중", 2: "고"}
-    codes = sorted(df[KEY].unique())
-    code_rank = {c: i + 1 for i, c in enumerate(codes)}
-    df["학교"] = df.apply(
-        lambda r: f"{suffix.get(r['학교급코드'], '교')}-{code_rank[r[KEY]]:04d}", axis=1
-    )
-
-    # 원본 식별 컬럼 제거 (학교명, 학교코드는 화면 미노출)
-    df = df.drop(columns=[c for c in ["학교명", KEY] if c in df.columns])
+    df["학교"] = df["학교명"]
     return df
 
 
@@ -237,8 +210,8 @@ def load_features() -> pd.DataFrame:
     base["WEE설치"] = base["WEE설치"].fillna(0)
     # 위경도 결측은 지도에서만 제외 (모델 피처 아님)
 
-    # 식별정보 익명화 (로드 직후) — 이후 화면에는 익명 컬럼만 사용
-    base = anonymize(base)
+    # 표시용 컬럼 준비 (공개 공시데이터 → 실제 학교명·지역명 그대로 사용)
+    base = prepare_display(base)
     return base.reset_index(drop=True)
 
 
@@ -418,7 +391,7 @@ def match_support(top_factors):
 # =============================================================================
 def page_admin_map(df_t: pd.DataFrame):
     st.subheader("전국 위험 지도 — 경기도 학교 TBRI")
-    st.caption("학교 위치는 공시 위경도 기반이며, 화면 라벨은 모두 익명 처리되었습니다.")
+    st.caption("경기도교육청 학교알리미 공개 공시데이터(위경도·학교명) 기준입니다.")
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -427,8 +400,13 @@ def page_admin_map(df_t: pd.DataFrame):
         years = sorted(df_t["연도"].unique())
         year = st.selectbox("연도", years, index=len(years) - 1)
     with c3:
-        grades = st.multiselect("등급 필터", ["적색", "황색", "녹색"],
-                                default=["적색", "황색", "녹색"])
+        # 등급 필터 — 멀티셀렉트(모두 같은 색) 대신 등급별 색상 체크박스로 구분
+        st.markdown("**등급 필터**")
+        show_red = st.checkbox("🟥 적색 (위험)", value=True)
+        show_org = st.checkbox("🟧 황색 (주의)", value=True)
+        show_grn = st.checkbox("🟩 녹색 (양호)", value=True)
+    grades = [g for g, on in
+              [("적색", show_red), ("황색", show_org), ("녹색", show_grn)] if on]
 
     sub = df_t[(df_t["학교급코드"] == lvl) & (df_t["연도"] == year)
                & (df_t["등급"].isin(grades))].copy()
@@ -458,8 +436,8 @@ def page_admin_map(df_t: pd.DataFrame):
         ).add_to(cluster)
     st_folium(fmap, height=460, use_container_width=True, returned_objects=[])
 
-    # 고위험 상위 표 (익명)
-    st.markdown("##### 고위험 학교 TOP 15 (익명)")
+    # 고위험 상위 표
+    st.markdown("##### 고위험 학교 TOP 15")
     top = sub.sort_values("TBRI", ascending=False).head(15)
     st.dataframe(
         top[["학교", "지역", "TBRI", "등급", "주당평균수업시수",
@@ -479,7 +457,7 @@ def page_admin_report(df_t: pd.DataFrame, explainer):
     sub = df_t[(df_t["학교급코드"] == lvl) & (df_t["연도"] == year)].copy()
     sub = sub.sort_values("TBRI", ascending=False)
     with c3:
-        school = st.selectbox("학교(익명)", sub["학교"].tolist(), key="rep_school")
+        school = st.selectbox("학교", sub["학교"].tolist(), key="rep_school")
 
     row = sub[sub["학교"] == school].iloc[[0]]
     grade = row["등급"].iloc[0]
@@ -488,7 +466,7 @@ def page_admin_report(df_t: pd.DataFrame, explainer):
     left, right = st.columns([1, 1.3])
     with left:
         st.plotly_chart(plot_gauge(tbri, grade), width="stretch", key="gauge_report")
-        st.metric("소속(익명 지역)", row["지역"].iloc[0])
+        st.metric("소속 지역", row["지역"].iloc[0])
         # 동일 학교급 내 백분위
         pct = (sub["TBRI"] < tbri).mean() * 100
         st.caption(f"같은 {LEVEL_NAME[lvl]} 중 위험도 상위 {100 - pct:.0f}% 수준")
@@ -522,7 +500,7 @@ def page_admin_whatif(df_t: pd.DataFrame, model, ref_pred, explainer):
         year = st.selectbox("연도", years, index=len(years) - 1, key="wi_year")
     sub = df_t[(df_t["학교급코드"] == lvl) & (df_t["연도"] == year)].sort_values("TBRI", ascending=False)
     with c3:
-        school = st.selectbox("기준 학교(익명)", sub["학교"].tolist(), key="wi_school")
+        school = st.selectbox("기준 학교", sub["학교"].tolist(), key="wi_school")
 
     base_row = sub[sub["학교"] == school].iloc[0]
 
@@ -642,7 +620,7 @@ def main():
         st.write(f"고위험 분류 AUC: {metrics['auc']:.3f}")
         st.write("모델: LightGBM · 설명: SHAP")
     st.sidebar.caption("데이터: 경기도교육청 학교알리미 공시(2022~2025)")
-    st.sidebar.caption("화면의 학교명·지역명은 모두 익명 처리됨")
+    st.sidebar.caption("공개 공시데이터 — 실제 학교명·지역명 사용")
 
     if mode == "관리자 대시보드":
         st.title("관리자 대시보드")
