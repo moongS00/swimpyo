@@ -1,0 +1,28 @@
+flowchart LR
+    classDef src fill:#e8f5e9,stroke:#2e9e5b,color:#222
+    classDef step fill:#fdf3e3,stroke:#e8a33d,color:#222
+    classDef out fill:#e3f2fd,stroke:#3d7fd6,color:#222
+
+    CSV1[직위별 교원 현황]:::src
+    CSV2[수업시수 현황]:::src
+    CSV3[학급별 학생수]:::src
+    CSV4[상담 현황]:::src
+    CSV5[동아리 활동]:::src
+    CSV6[학교기본정보]:::src
+
+    LOAD["1. 로드<br/>UTF-8-sig CSV"]:::step
+    JOIN["2. 조인<br/>학교코드 × 연도"]:::step
+    DERIVE["3. 파생변수<br/>비율 피처 13종"]:::step
+    OUTLIER["4. 이상치 제거"]:::step
+    IMPUTE["5. 결측 대치<br/>학교급별 중앙값"]:::step
+    ENCODE["6. 범주형 인코딩"]:::step
+
+    FEATURES[("features<br/>학교 × 연도<br/>약 9,400 표본")]:::out
+
+    CSV1 --> LOAD
+    CSV2 --> LOAD
+    CSV3 --> LOAD
+    CSV4 --> LOAD
+    CSV5 --> LOAD
+    CSV6 --> LOAD
+    LOAD --> JOIN --> DERIVE --> OUTLIER --> IMPUTE --> ENCODE --> FEATURES

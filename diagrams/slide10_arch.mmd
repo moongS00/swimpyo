@@ -1,0 +1,37 @@
+flowchart TD
+    classDef ui fill:#e3f2fd,stroke:#3d7fd6,color:#222
+    classDef svc fill:#fdf3e3,stroke:#e8a33d,color:#222
+    classDef domain fill:#e8f5e9,stroke:#2e9e5b,color:#222
+    classDef common fill:#f3e5f5,stroke:#8e7fb0,color:#222
+    classDef data fill:#fce4ec,stroke:#c08c8c,color:#222
+
+    subgraph UI["UI Layer (Streamlit Pages)"]
+        Admin["admin/<br/>관리자 대시보드"]:::ui
+        Teacher["teacher/<br/>교사 셀프체크"]:::ui
+        Info["info/<br/>모델·데이터 정보"]:::ui
+    end
+
+    subgraph Service["Service Layer"]
+        Support["support_matcher/<br/>위험요인 → 지원자원 룰 매칭"]:::svc
+    end
+
+    subgraph Domain["Domain Layer"]
+        Model["model/<br/>LightGBM + SHAP TreeExplainer"]:::domain
+    end
+
+    subgraph Common["Common"]
+        CommonMod["common/<br/>설정·표시 컬럼·유틸"]:::common
+    end
+
+    subgraph Data["Data Layer (Offline)"]
+        ETL["etl/<br/>공공데이터 어댑터·전처리"]:::data
+    end
+
+    Admin --> Support
+    Admin --> Model
+    Teacher --> Support
+    Teacher --> Model
+    Info --> Model
+    Support --> CommonMod
+    Model --> CommonMod
+    ETL -.산출물 파일.-> Model

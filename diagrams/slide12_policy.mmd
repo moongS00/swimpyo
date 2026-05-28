@@ -1,0 +1,21 @@
+flowchart LR
+    classDef bad fill:#fbe9e7,stroke:#d6453d,color:#222
+    classDef ai fill:#e3f2fd,stroke:#3d7fd6,color:#222
+    classDef good fill:#e8f5e9,stroke:#2e9e5b,color:#222
+    classDef neutral fill:#fdf3e3,stroke:#e8a33d,color:#222
+
+    T1["교사 번아웃"]:::bad
+    H1["휴직 신청"]:::bad
+    S1["상담 연결"]:::bad
+    T1 --> H1 --> S1
+
+    AI["쉼표 AI<br/>TBRI + SHAP"]:::ai
+    DASH["등급 분류<br/>🟥 · 🟧 · 🟩"]:::neutral
+    ALLOC["자원 선제 배치"]:::ai
+    PREV["휴직률 감소"]:::good
+    AI --> DASH --> ALLOC --> PREV
+
+    L1["기존: 사후 대응"]
+    L2["도입 후: 선제 예측 + 사후 보완"]
+    L1 -.-> T1
+    L2 -.-> AI

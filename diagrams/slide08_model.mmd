@@ -1,0 +1,21 @@
+flowchart LR
+    classDef data fill:#e3f2fd,stroke:#3d7fd6,color:#222
+    classDef proc fill:#fdf3e3,stroke:#e8a33d,color:#222
+    classDef green fill:#e8f5e9,stroke:#2e9e5b,color:#222
+    classDef yellow fill:#fff8e1,stroke:#e8a33d,color:#222
+    classDef red fill:#fbe9e7,stroke:#d6453d,color:#222
+
+    F[("features<br/>15개 피처")]:::data
+    LGB["LightGBM<br/>회귀 학습"]:::proc
+    P["예측 휴직비율<br/>연속값"]:::proc
+    PCT["백분위 환산<br/>0~100"]:::proc
+    TBRI(["TBRI 점수"]):::proc
+
+    G1["🟩 녹색<br/>0~50<br/>양호"]:::green
+    G2["🟧 황색<br/>50~75<br/>주의"]:::yellow
+    G3["🟥 적색<br/>75~100<br/>위험"]:::red
+
+    F --> LGB --> P --> PCT --> TBRI
+    TBRI --> G1
+    TBRI --> G2
+    TBRI --> G3
