@@ -38,6 +38,7 @@
 
 import os
 import glob
+import zipfile
 
 import numpy as np
 import pandas as pd
@@ -56,6 +57,12 @@ from streamlit_option_menu import option_menu
 # [common] 설정·상수
 # =============================================================================
 DATASET_DIR = "dataset"
+DATASET_ZIP = "dataset.zip"
+
+# Streamlit Cloud 등 dataset/ 가 없는 환경에서 dataset.zip 을 자동 해제
+if not os.path.isdir(DATASET_DIR) and os.path.isfile(DATASET_ZIP):
+    with zipfile.ZipFile(DATASET_ZIP, "r") as zf:
+        zf.extractall(".")
 
 # 카테고리 폴더명 (dataset/ 하위)
 CAT_DIRS = {
