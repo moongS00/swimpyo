@@ -10,10 +10,7 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 
-# 데이터셋 — 개별 CSV는 추적하지 않고 dataset.zip 으로만 관리
-# (앱 실행 전 dataset.zip 을 압축 해제해 dataset/ 폴더를 복원해야 함)
-dataset/
-!dataset.zip
+# 데이터셋 — dataset/ 폴더와 dataset.zip 모두 추적 (Streamlit Cloud 배포 안정성)
 
 # 산출물 캐시 (재생성 가능)
 data/processed/*.pkl
